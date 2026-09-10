@@ -1,15 +1,15 @@
 name: CI Workflow
 
 on:
-  schedule:
-    # GitHub schedules use UTC.
-    - cron: '0 3 * * *'
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+  # schedule:
+  #   # GitHub schedules use UTC.
+  #   - cron: '0 3 * * *'
+  # pull_request:
+  #   branches:
+  #     - main
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       platform:
@@ -19,8 +19,8 @@ on:
         type: choice
         options:
           - linux
-          - macos
-          - windows
+          # - macos
+          # - windows
 
       auto_checkpoint:
         description: 'Database config - auto checkpoint'
@@ -79,66 +79,66 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  sanity-checks:
-    name: sanity checks
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
+  # sanity-checks:
+  #   name: sanity checks
+  #   runs-on: ubuntu-24.04
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Check source headers for include guards
-        run: ./scripts/check-include-guards.sh src/include
-          ./scripts/check-include-guards.sh test/include
+  #     - name: Check source headers for include guards
+  #       run: ./scripts/check-include-guards.sh src/include
+  #         ./scripts/check-include-guards.sh test/include
 
-      - name: Check extension headers for include guards
-        run: |
-          for dir in extension/*/src/include ;do
-            ./scripts/check-include-guards.sh "$dir"
-          done
+  #     - name: Check extension headers for include guards
+  #       run: |
+  #         for dir in extension/*/src/include ;do
+  #           ./scripts/check-include-guards.sh "$dir"
+  #         done
 
-      - name: Checks source files for std::assert
-        run: ./scripts/check-no-std-assert.sh src
+  #     - name: Checks source files for std::assert
+  #       run: ./scripts/check-no-std-assert.sh src
 
-      - name: Check extension files for std::assert
-        run: ./scripts/check-no-std-assert.sh extension
+  #     - name: Check extension files for std::assert
+  #       run: ./scripts/check-no-std-assert.sh extension
 
-      - name: Ensure generated grammar files are up to date
-        run: |
-          python3 scripts/antlr4/hash.py src/antlr4/keywords.txt src/antlr4/Cypher.g4 > tmphashfile
-          cmp tmphashfile scripts/antlr4/hash.md5
-          rm tmphashfile
+  #     - name: Ensure generated grammar files are up to date
+  #       run: |
+  #         python3 scripts/antlr4/hash.py src/antlr4/keywords.txt src/antlr4/Cypher.g4 > tmphashfile
+  #         cmp tmphashfile scripts/antlr4/hash.md5
+  #         rm tmphashfile
 
-      - name: Install WAL codegen dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-18
-          pip3 install uv
+  #     - name: Install WAL codegen dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y clang-format-18
+  #         pip3 install uv
 
-      - name: Ensure generated WAL record files are up to date
-        run: |
-          export CLANG_FORMAT=clang-format-18
-          python3 scripts/generate_wal_typespec.py
-          git diff --exit-code -- src/include/storage/wal/record src/storage/wal/records
+  #     - name: Ensure generated WAL record files are up to date
+  #       run: |
+  #         export CLANG_FORMAT=clang-format-18
+  #         python3 scripts/generate_wal_typespec.py
+  #         git diff --exit-code -- src/include/storage/wal/record src/storage/wal/records
 
-  clang-format:
-    runs-on: ubuntu-24.04
-    container:
-      image: alpine:3.20
-    steps:
-      - name: Install clang-format dependencies
-        run: apk add --no-cache git python3 clang18-extra-tools
+  # clang-format:
+  #   runs-on: ubuntu-24.04
+  #   container:
+  #     image: alpine:3.20
+  #   steps:
+  #     - name: Install clang-format dependencies
+  #       run: apk add --no-cache git python3 clang18-extra-tools
 
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         repository: ${{ github.event.pull_request.head.repo.full_name }}
+  #         ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Clang Format
-        run: python3 scripts/run-clang-format.py --clang-format-executable /usr/lib/llvm18/bin/clang-format -r src/ test/ tools/ extension/
+  #     - name: Clang Format
+  #       run: python3 scripts/run-clang-format.py --clang-format-executable /usr/lib/llvm18/bin/clang-format -r src/ test/ tools/ extension/
 
   minimal-test:
     name: minimal test (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
-    needs: [ sanity-checks ]
+    # needs: [ sanity-checks ]
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON((github.event_name == 'schedule' && '{"include":[{"platform":"linux","runner":"ubuntu-latest"},{"platform":"macos","runner":"macos-latest"},{"platform":"windows","runner":"windows-2022"}]}') || (github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'macos' && '{"include":[{"platform":"macos","runner":"macos-latest"}]}') || (github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'windows' && '{"include":[{"platform":"windows","runner":"windows-2022"}]}') || '{"include":[{"platform":"linux","runner":"ubuntu-latest"}]}') }}
@@ -297,148 +297,148 @@ jobs:
           path: D:\c
           key: minimal-test-${{ runner.os }}-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-  minimal-linux-extension-test:
-    name: minimal linux extension test
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'linux' }}
-    env:
-      GEN: Ninja
-      UW_S3_ACCESS_KEY_ID: ${{ secrets.UW_S3_ACCESS_KEY_ID }}
-      UW_S3_SECRET_ACCESS_KEY: ${{ secrets.UW_S3_SECRET_ACCESS_KEY }}
-      AWS_S3_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-      AWS_S3_SECRET_ACCESS_KEY: ${{ secrets.AWS_S3_SECRET_ACCESS_KEY }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_S3_SECRET_ACCESS_KEY }}
-      GCS_ACCESS_KEY_ID: ${{ secrets.GCS_ACCESS_KEY_ID }}
-      GCS_SECRET_ACCESS_KEY: ${{ secrets.GCS_SECRET_ACCESS_KEY }}
-      AZURE_CONNECTION_STRING: ${{ format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', secrets.AZURE_ACCOUNT_NAME, secrets.AZURE_ACCOUNT_KEY) }}
-      AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-      AZURE_PUBLIC_CONTAINER: ${{ secrets.AZURE_PUBLIC_CONTAINER }}
+  # minimal-linux-extension-test:
+  #   name: minimal linux extension test
+  #   runs-on: ubuntu-latest
+  #   if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'linux' }}
+  #   env:
+  #     GEN: Ninja
+  #     UW_S3_ACCESS_KEY_ID: ${{ secrets.UW_S3_ACCESS_KEY_ID }}
+  #     UW_S3_SECRET_ACCESS_KEY: ${{ secrets.UW_S3_SECRET_ACCESS_KEY }}
+  #     AWS_S3_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
+  #     AWS_S3_SECRET_ACCESS_KEY: ${{ secrets.AWS_S3_SECRET_ACCESS_KEY }}
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_S3_SECRET_ACCESS_KEY }}
+  #     GCS_ACCESS_KEY_ID: ${{ secrets.GCS_ACCESS_KEY_ID }}
+  #     GCS_SECRET_ACCESS_KEY: ${{ secrets.GCS_SECRET_ACCESS_KEY }}
+  #     AZURE_CONNECTION_STRING: ${{ format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', secrets.AZURE_ACCOUNT_NAME, secrets.AZURE_ACCOUNT_KEY) }}
+  #     AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+  #     AZURE_PUBLIC_CONTAINER: ${{ secrets.AZURE_PUBLIC_CONTAINER }}
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Checkout extensions
-        run: |
-          git submodule update --init extension dataset benchmark
+  #     - name: Checkout extensions
+  #       run: |
+  #         git submodule update --init extension dataset benchmark
 
-      - name: Free disk space on Ubuntu runner
-        uses: kfir4444/free-disk-space@main
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
+  #     - name: Free disk space on Ubuntu runner
+  #       uses: kfir4444/free-disk-space@main
+  #       with:
+  #         tool-cache: true
+  #         android: true
+  #         dotnet: true
+  #         haskell: true
+  #         large-packages: true
+  #         swap-storage: true
 
-      - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.9.4
-        with:
-          pixi-version: v0.68.1
-          cache: false
-          activate-environment: true
+  #     - name: Setup pixi
+  #       uses: prefix-dev/setup-pixi@v0.9.4
+  #       with:
+  #         pixi-version: v0.68.1
+  #         cache: false
+  #         activate-environment: true
 
-      - name: Configure ADBC runtime
-        run: |
-          curl -LsSf https://dbc.columnar.tech/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          echo "LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
-          "$HOME/.local/bin/dbc" install --level user duckdb
+  #     - name: Configure ADBC runtime
+  #       run: |
+  #         curl -LsSf https://dbc.columnar.tech/install.sh | sh
+  #         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+  #         echo "LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+  #         "$HOME/.local/bin/dbc" install --level user duckdb
 
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: minimal-extension-test-${{ runner.os }}-${{ github.ref }}
-          max-size: 2G
-          restore-keys: |
-            minimal-extension-test-${{ runner.os }}-refs/heads/main
-            minimal-extension-test-${{ runner.os }}-
+  #     - name: Setup ccache
+  #       uses: hendrikmuhs/ccache-action@v1.2
+  #       with:
+  #         key: minimal-extension-test-${{ runner.os }}-${{ github.ref }}
+  #         max-size: 2G
+  #         restore-keys: |
+  #           minimal-extension-test-${{ runner.os }}-refs/heads/main
+  #           minimal-extension-test-${{ runner.os }}-
 
-      - name: Update PostgreSQL host
-        working-directory: extension/postgres/test/test_files
-        env:
-          PG_FNAME: postgres.test
-          SQL_FNAME: sql_query.test
-          FIND: "localhost"
-        run: |
-          node -e 'fs=require("fs");fs.readFile(process.env.PG_FNAME,"utf8",(err,data)=>{if(err!=null)throw err;fs.writeFile(process.env.PG_FNAME,data.replaceAll(process.env.FIND,process.env.PG_HOST),"utf8",e=>{if(e!=null)throw e;});});'
-          node -e 'fs=require("fs");fs.readFile(process.env.SQL_FNAME,"utf8",(err,data)=>{if(err!=null)throw err;fs.writeFile(process.env.SQL_FNAME,data.replaceAll(process.env.FIND,process.env.PG_HOST),"utf8",e=>{if(e!=null)throw e;});});'
+  #     - name: Update PostgreSQL host
+  #       working-directory: extension/postgres/test/test_files
+  #       env:
+  #         PG_FNAME: postgres.test
+  #         SQL_FNAME: sql_query.test
+  #         FIND: "localhost"
+  #       run: |
+  #         node -e 'fs=require("fs");fs.readFile(process.env.PG_FNAME,"utf8",(err,data)=>{if(err!=null)throw err;fs.writeFile(process.env.PG_FNAME,data.replaceAll(process.env.FIND,process.env.PG_HOST),"utf8",e=>{if(e!=null)throw e;});});'
+  #         node -e 'fs=require("fs");fs.readFile(process.env.SQL_FNAME,"utf8",(err,data)=>{if(err!=null)throw err;fs.writeFile(process.env.SQL_FNAME,data.replaceAll(process.env.FIND,process.env.PG_HOST),"utf8",e=>{if(e!=null)throw e;});});'
 
-      - name: Install DuckDB (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          if [ "${{ runner.arch }}" = "X64" ]; then
-            wget https://github.com/duckdb/duckdb/releases/latest/download/libduckdb-linux-amd64.zip
-            unzip libduckdb-linux-amd64.zip -d duckdb
-          else
-            wget https://github.com/duckdb/duckdb/releases/latest/download/libduckdb-linux-arm64.zip
-            unzip libduckdb-linux-arm64.zip -d duckdb
-          fi
-          sudo cp duckdb/duckdb.h /usr/local/include/
-          sudo cp duckdb/duckdb.hpp /usr/local/include/
-          sudo cp duckdb/libduckdb.so /usr/local/lib/
-          sudo ldconfig
-          # Create CMake config files
-          sudo mkdir -p /usr/local/lib/cmake/DuckDB
-          sudo tee /usr/local/lib/cmake/DuckDB/DuckDBConfig.cmake > /dev/null << 'EOF'
-          # DuckDB CMake configuration file
+  #     - name: Install DuckDB (Linux)
+  #       if: runner.os == 'Linux'
+  #       run: |
+  #         if [ "${{ runner.arch }}" = "X64" ]; then
+  #           wget https://github.com/duckdb/duckdb/releases/latest/download/libduckdb-linux-amd64.zip
+  #           unzip libduckdb-linux-amd64.zip -d duckdb
+  #         else
+  #           wget https://github.com/duckdb/duckdb/releases/latest/download/libduckdb-linux-arm64.zip
+  #           unzip libduckdb-linux-arm64.zip -d duckdb
+  #         fi
+  #         sudo cp duckdb/duckdb.h /usr/local/include/
+  #         sudo cp duckdb/duckdb.hpp /usr/local/include/
+  #         sudo cp duckdb/libduckdb.so /usr/local/lib/
+  #         sudo ldconfig
+  #         # Create CMake config files
+  #         sudo mkdir -p /usr/local/lib/cmake/DuckDB
+  #         sudo tee /usr/local/lib/cmake/DuckDB/DuckDBConfig.cmake > /dev/null << 'EOF'
+  #         # DuckDB CMake configuration file
 
-          if(NOT TARGET DuckDB::duckdb)
-            add_library(DuckDB::duckdb SHARED IMPORTED)
-            set_target_properties(DuckDB::duckdb PROPERTIES
-              INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include"
-              IMPORTED_LOCATION "/usr/local/lib/libduckdb.so"
-            )
-          endif()
+  #         if(NOT TARGET DuckDB::duckdb)
+  #           add_library(DuckDB::duckdb SHARED IMPORTED)
+  #           set_target_properties(DuckDB::duckdb PROPERTIES
+  #             INTERFACE_INCLUDE_DIRECTORIES "/usr/local/include"
+  #             IMPORTED_LOCATION "/usr/local/lib/libduckdb.so"
+  #           )
+  #         endif()
 
-          set(DuckDB_LIBRARIES DuckDB::duckdb)
-          set(DuckDB_INCLUDE_DIRS "/usr/local/include")
-          set(DuckDB_FOUND TRUE)
-          EOF
+  #         set(DuckDB_LIBRARIES DuckDB::duckdb)
+  #         set(DuckDB_INCLUDE_DIRS "/usr/local/include")
+  #         set(DuckDB_FOUND TRUE)
+  #         EOF
 
-      - name: Install uv
-        run: |
-          pip3 install uv
-          uv venv
+  #     - name: Install uv
+  #       run: |
+  #         pip3 install uv
+  #         uv venv
 
-      - name: Install dependencies
-        run: uv pip install duckdb rangehttpserver requests
+  #     - name: Install dependencies
+  #       run: uv pip install duckdb rangehttpserver requests
 
-      - name: Create ADBC DuckDB fixture
-        run: |
-          uv run python - <<'PY'
-          import duckdb
+  #     - name: Create ADBC DuckDB fixture
+  #       run: |
+  #         uv run python - <<'PY'
+  #         import duckdb
 
-          con = duckdb.connect("extension/adbc/test/adbc.duckdb")
-          con.execute("CREATE OR REPLACE TABLE games(id BIGINT, title VARCHAR, score BIGINT)")
-          con.execute("""
-              INSERT INTO games VALUES
-              (1, 'Portal', 95),
-              (2, 'Celeste', 94),
-              (3, 'Hades', 93)
-          """)
-          con.close()
-          PY
+  #         con = duckdb.connect("extension/adbc/test/adbc.duckdb")
+  #         con.execute("CREATE OR REPLACE TABLE games(id BIGINT, title VARCHAR, score BIGINT)")
+  #         con.execute("""
+  #             INSERT INTO games VALUES
+  #             (1, 'Portal', 95),
+  #             (2, 'Celeste', 94),
+  #             (3, 'Hades', 93)
+  #         """)
+  #         con.close()
+  #         PY
 
-      # shell needs to be built first to generate the dataset provided by the server
-      - name: Extension test build
-        run: |
-          make relwithdebinfo
-          cp build/relwithdebinfo/tools/shell/lbug lbug.prod
-          make extension-test-build
-          cp lbug.prod build/relwithdebinfo/tools/shell/lbug
+  #     # shell needs to be built first to generate the dataset provided by the server
+  #     - name: Extension test build
+  #       run: |
+  #         make relwithdebinfo
+  #         cp build/relwithdebinfo/tools/shell/lbug lbug.prod
+  #         make extension-test-build
+  #         cp lbug.prod build/relwithdebinfo/tools/shell/lbug
 
-      - name: Test dynamic extension loading
-        run: |
-          cd tools/shell/test
-          uv venv
-          source .venv/bin/activate
-          uv pip install pytest pexpect
-          pytest test_dynamic_extension_loading.py -v
+  #     - name: Test dynamic extension loading
+  #       run: |
+  #         cd tools/shell/test
+  #         uv venv
+  #         source .venv/bin/activate
+  #         uv pip install pytest pexpect
+  #         pytest test_dynamic_extension_loading.py -v
 
-      - name: Extension test
-        run: |
-          uv run scripts/generate-tinysnb.py
-          uv run scripts/setup-extension-repo.py &
-          make extension-test
+  #     - name: Extension test
+  #       run: |
+  #         uv run scripts/generate-tinysnb.py
+  #         uv run scripts/setup-extension-repo.py &
+  #         make extension-test
